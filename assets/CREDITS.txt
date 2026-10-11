@@ -1,0 +1,4 @@
+3D models by Kenney (www.kenney.nl) - Creative Commons CC0 (public domain).
+Packs: Train Kit, Food Kit, Furniture Kit, City Kit (Commercial), City Kit (Industrial), City Kit (Roads), Pirate Kit, Castle Kit, Space Kit, Space Station Kit, Coaster Kit, Platformer Kit, Holiday Kit, Graveyard Kit.
+Sounds by Kenney (www.kenney.nl) - Creative Commons CC0: Impact Sounds, Interface Sounds, Voiceover Pack (Fighter), Music Jingles.
+Background music: original, synthesized in code (music.js).

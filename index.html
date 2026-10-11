@@ -1,0 +1,279 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Break My Eggs</title>
+<link rel="icon" href="assets/icon.png"><link rel="apple-touch-icon" href="assets/icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffb02e"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Break My Eggs">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; color: #fff; user-select: none; }
+  canvas { display: block; touch-action: none; }
+  html, body { overscroll-behavior: none; -webkit-touch-callout: none; -webkit-user-select: none; touch-action: manipulation; }
+  /* touch controls */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #stickZone { position: absolute; left: 0; top: 20%; bottom: 0; width: 50%; pointer-events: auto; touch-action: none; }
+  #stickBase { position: fixed; left: 110px; top: calc(100% - 120px); width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; background: #ffffff1c; border: 3px solid #ffffff55; pointer-events: none; }
+  #stickKnob { position: absolute; left: 32px; top: 32px; width: 60px; height: 60px; border-radius: 50%; background: #ffffffb0; box-shadow: 0 2px 8px #0006; }
+  #touchBtns button, #touchPause { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; border: 3px solid #ffffff88; background: #0008; color: #fff;
+    font-weight: bold; font-size: 13px; line-height: 1.1; font-family: 'Segoe UI', Arial, sans-serif; }
+  #touchBtns button b { display: block; font-size: 28px; }
+  #touchBtns button.on { background: #ffd93dcc; color: #000; transform: scale(.94); }
+  .tbtn-jump { right: 18px; bottom: 18px; width: 104px; height: 104px; }
+  .tbtn-punch { right: 132px; bottom: 26px; width: 86px; height: 86px; }
+  .tbtn-grab { right: 36px; bottom: 132px; width: 78px; height: 78px; }
+  #touchPause { top: 10px; right: 10px; width: 52px; height: 52px; font-size: 22px; border-radius: 14px; }
+  #rotate { display: none; position: fixed; inset: 0; z-index: 50; background: #111; color: #ffd93d; align-items: center; justify-content: center; flex-direction: column; font-size: 24px; text-align: center; padding: 20px; }
+  #rotate b { font-size: 64px; }
+  .ic { width: 1.15em; height: 1.15em; vertical-align: -0.22em; flex-shrink: 0; pointer-events: none; }   /* clicks land on the button */
+  .ic.flip { transform: scaleX(-1); }
+  h1 .logo { height: 1.25em; vertical-align: -0.3em; border-radius: 22%; border: 3px solid #000; box-shadow: 0 4px 0 #0008; }
+  @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+  body.touch #esc { display: none !important; }
+  [hidden] { display: none !important; }
+  #online { position: absolute; top: 16px; right: 16px; width: 260px; background: #000a; border-radius: 14px; padding: 12px; font-size: 14px; }
+  #online button { width: 100%; font-size: 16px; font-weight: bold; padding: 8px; border: 0; border-radius: 8px; cursor: pointer; background: #4dd4ff; color: #000; }
+  #joinRow { display: flex; gap: 6px; margin-top: 8px; }
+  #joinRow input { flex: 1; min-width: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 3px; padding: 6px; border-radius: 8px; border: 0; }
+  #joinRow button { width: auto; background: #6bcb77; }
+  #leaveBtn { background: #ff5a5a !important; margin-top: 8px; }
+  #netStatus { margin-top: 8px; min-height: 1em; }
+  #code { font-size: 26px; letter-spacing: 4px; color: #ffd93d; cursor: pointer; display: block; }
+  #waitHost { font-size: 20px; font-weight: bold; padding: 10px; }
+  .card.remote { opacity: .85; }
+  .rname { font-size: 18px; font-weight: bold; margin-top: 8px; }
+  .big { font-family: 'Arial Black', 'Segoe UI Black', sans-serif; text-shadow: 0 4px 0 #0008; }
+  #lobby { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; padding: 16px; }
+  #lobby > * { pointer-events: auto; }
+  #lobby h1 { margin: 0; text-align: center; font-size: 64px; color: #ffd93d; -webkit-text-stroke: 3px #000; }
+  .hint { text-align: center; font-size: 18px; background: #0008; border-radius: 10px; padding: 6px 12px; margin: 6px auto; }
+  #cards { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .card { width: 200px; max-height: 52vh; overflow-y: auto; background: #000a; border: 4px solid var(--c, #666); border-radius: 14px; padding: 10px; position: relative; font-size: 14px; }
+  .card.empty { display: flex; align-items: center; justify-content: center; text-align: center; color: #aaa; border-style: dashed; min-height: 170px; }
+  .card input { width: 100%; font-size: 16px; font-weight: bold; padding: 4px; border-radius: 6px; border: 0; margin: 4px 0; }
+  .ctrl { color: var(--c); font-weight: bold; }
+  .x { position: absolute; right: 6px; top: 6px; background: none; color: #fff; border: 0; font-size: 16px; cursor: pointer; }
+  .sw { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin: 3px 0 6px; }
+  .lbl { font-size: 11px; opacity: .7; margin-top: 4px; }
+  .sw span { aspect-ratio: 1; border-radius: 50%; cursor: pointer; border: 2px solid #0006; }
+  .sw span.on { border: 3px solid #fff; }
+  .cyc { display: flex; align-items: center; justify-content: space-between; margin: 3px 0; }
+  .cyc button, .rnd { background: #fff2; color: #fff; border: 0; border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 14px; }
+  .rnd { width: 100%; margin-top: 4px; }
+  .row { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
+  .row button { font-size: 22px; padding: 10px 26px; border-radius: 12px; border: 0; cursor: pointer; font-weight: bold; }
+  #start { background: #ffd93d; color: #000; }
+  #start:disabled { opacity: .4; cursor: default; }
+  #addBot { background: #fff3; color: #fff; }
+  .keys { text-align: center; font-size: 13px; opacity: .85; margin-top: 8px; }
+  #hud { position: fixed; top: 10px; left: 0; right: 0; display: none; justify-content: center; gap: 10px; pointer-events: none; }
+  .hp { background: #000a; border-radius: 10px; padding: 6px 10px; min-width: 120px; border-bottom: 4px solid var(--c); }
+  .hp .bar { height: 6px; background: #fff3; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .hp .bar i { display: block; height: 100%; background: var(--c); }
+  .hp.dead { opacity: .35; }
+  .hp.yolk .bar i { background: #ffb21c; }
+  #banner { position: fixed; top: 38%; left: 0; right: 0; text-align: center; font-size: 72px; color: #fff; -webkit-text-stroke: 3px #000; pointer-events: none; display: none; }
+  #banner small { display: block; font-size: 30px; -webkit-text-stroke: 1px #000; }
+  #esc { position: fixed; bottom: 8px; right: 12px; font-size: 13px; opacity: .6; display: none; }
+  .row .ghost { background: #fff2; color: #fff; font-size: 18px; }
+  #menu { position: fixed; inset: 0; background: #000b; display: flex; align-items: center; justify-content: center; z-index: 20; }
+  .panel { background: #1d1d26; border: 4px solid #ffd93d; border-radius: 18px; padding: 22px 28px; min-width: 340px; max-width: 900px; max-height: 90vh; overflow-y: auto; }
+  .panel h2 { margin: 0 0 14px; text-align: center; font-size: 40px; color: #ffd93d; -webkit-text-stroke: 2px #000; }
+  .panel .mb { display: block; width: 100%; font-size: 20px; font-weight: bold; padding: 11px; margin: 8px 0; border: 0; border-radius: 10px; cursor: pointer; background: #fff2; color: #fff; }
+  .panel .mb:hover, .panel .mb:focus { background: #ffd93d; color: #000; outline: none; }
+  .panel .mb.danger:hover { background: #ff5a5a; }
+  .vol { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 10px 0; }
+  .vol input { flex: 1; accent-color: #ffd93d; }
+  table.ctl { border-collapse: collapse; width: 100%; font-size: 16px; margin-bottom: 14px; }
+  table.ctl th { color: #ffd93d; text-align: left; padding: 6px 10px; border-bottom: 2px solid #fff3; }
+  table.ctl td { padding: 6px 10px; border-bottom: 1px solid #fff1; }
+  kbd { background: #fff; color: #000; border-radius: 5px; padding: 1px 7px; font-weight: bold; font-family: inherit; box-shadow: 0 2px 0 #999; margin: 0 1px; white-space: nowrap; }
+  .tips { font-size: 15px; line-height: 1.5; margin: 0 0 6px; padding-left: 20px; }
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+    background: radial-gradient(ellipse at center, #0000 30%, #0008 100%); }
+  #title h1 { margin: 0; font-size: clamp(48px, 9vh, 92px); color: #ffd93d; -webkit-text-stroke: 4px #000; animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-10px) rotate(-1.5deg); } }
+  #title .tag { font-size: 20px; margin: 2px 0 2vh; text-shadow: 0 2px 0 #000; }
+  .tb { display: block; width: 300px; margin: 0.9vh auto; font-size: clamp(16px, 3vh, 24px); font-weight: bold; padding: 1.1vh; border-radius: 14px; cursor: pointer;
+    border: 3px solid #000; background: #fffbe8; color: #222; box-shadow: 0 5px 0 #000; font-family: 'Arial Black', 'Segoe UI Black', sans-serif; transition: transform .08s; }
+  .tb:hover, .tb:focus { background: #ffd93d; transform: scale(1.06); outline: none; }
+  .tb.primary { background: #ffd93d; font-size: clamp(20px, 3.8vh, 30px); }
+  #title .foot { position: absolute; bottom: 14px; font-size: 14px; opacity: .8; text-shadow: 0 1px 0 #000; }
+  #toTitle { position: absolute; top: 16px; left: 16px; font-size: 16px; font-weight: bold; padding: 8px 14px; border: 0; border-radius: 10px; cursor: pointer; background: #000a; color: #fff; }
+  .credits { font-size: 16px; line-height: 1.6; text-align: center; }
+  #mapBtn { background: #1d3557; color: #fff; font-size: 20px; }
+  #mapBtn .cnt { background: #ffd93d; color: #000; border-radius: 999px; padding: 1px 9px; font-size: 15px; margin-left: 4px; }
+  #mapPick { position: fixed; inset: 0; background: #000c; display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
+  #mapPick[hidden] { display: none; }
+  #mapPick .mp { width: min(1180px, 100%); max-height: 100%; display: flex; flex-direction: column; background: #15202b; border: 4px solid #ffd93d; border-radius: 18px; padding: 14px 18px; }
+  #mapPick h2 { margin: 0; text-align: center; font-size: 38px; color: #ffd93d; -webkit-text-stroke: 2px #000; }
+  #mapPick .sub { text-align: center; color: #cfd8e3; margin: 2px 0 10px; }
+  #mapGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-auto-rows: max-content; gap: 12px; overflow-y: auto; min-height: 0; padding: 4px; }
+  .mcard { position: relative; text-align: left; padding: 0 0 8px; border: 3px solid #ffffff22; border-radius: 12px; background: #22303f; color: #fff; cursor: pointer; overflow: hidden; font: inherit; transition: transform .12s, border-color .12s; }
+  .mcard:hover, .mcard:focus { transform: translateY(-3px); border-color: #ffffffaa; outline: none; }
+  .mcard.on { border-color: #ffd93d; box-shadow: 0 0 0 3px #ffd93d55; }
+  .mcard img, .mcard .ph { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .mcard .ph { display: flex; align-items: center; justify-content: center; font-size: 64px; background: linear-gradient(135deg, #3a7bd5, #8e44ad); }
+  .mcard .nm { font-weight: bold; font-size: 16px; padding: 7px 10px 2px; }
+  .mcard .mhint { font-size: 12px; color: #b8c4d0; padding: 0 10px; min-height: 30px; }
+  .mcard .who { font-size: 12px; color: #ffd93d; padding: 3px 10px 0; min-height: 15px; }
+  .mcard .votes { position: absolute; top: 8px; right: 8px; background: #ffd93d; color: #000; font-weight: bold; border-radius: 999px; min-width: 30px; text-align: center; padding: 3px 8px; font-size: 18px; box-shadow: 0 2px 6px #0008; }
+  .mcard .mine { position: absolute; top: 8px; left: 8px; background: #2ecc71; color: #fff; font-weight: bold; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+  #mapClose { margin: 12px auto 0; font-size: 20px; padding: 8px 30px; border-radius: 12px; border: 0; background: #ffd93d; font-weight: bold; cursor: pointer; }
+  .share { text-align: center; max-width: 520px; font-size: 15px; }
+  .share a { color: #ffd93d; word-break: break-all; }
+  .share .bigqr { width: 220px; height: 220px; image-rendering: pixelated; border-radius: 10px; background: #fff; }
+  .share .ver { opacity: .6; font-size: 12px; }
+  .joinqr { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; }
+  .joinqr img { width: 96px; height: 96px; image-rendering: pixelated; border-radius: 6px; background: #fff; }
+  #pausedNote { position: fixed; top: 70px; left: 0; right: 0; text-align: center; font-size: 28px; pointer-events: none; display: none; }
+  #resumeAll { pointer-events: auto; margin-top: 8px; font-size: 18px; font-weight: bold; padding: 8px 20px; border: 0; border-radius: 10px; background: #ffd93d; cursor: pointer; font-family: 'Segoe UI', Arial, sans-serif; }
+  /* small landscape screens (phones) */
+  @media (max-height: 540px) {
+    #lobby { padding: 6px 8px; overflow-y: auto; justify-content: flex-start; gap: 4px; }
+    #lobby h1 { display: none; }
+    #lobby #toTitle { position: static; align-self: flex-start; padding: 5px 10px; font-size: 13px; }
+    #lobby #online { position: static; width: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; background: none; padding: 0; }
+    #lobby #online button { width: auto; padding: 5px 12px; }
+    #lobby #joinRow, #lobby #leaveBtn, #lobby #netStatus { margin-top: 0 !important; }
+    #lobby #joinRow input { width: 90px; font-size: 14px; padding: 4px; flex: none; }
+    #lobby h1 { font-size: 30px; -webkit-text-stroke: 2px #000; }
+    #lobby .hint { font-size: 12px; padding: 3px 8px; margin: 3px auto; }
+    #cards { gap: 6px; }
+    .card { width: 150px; max-height: 50vh; font-size: 11px; padding: 6px; border-width: 3px; }
+    .row { margin-top: 4px; gap: 6px; }
+    .row button { font-size: 14px !important; padding: 7px 12px; }
+    #code { font-size: 18px; }
+    #banner { font-size: 40px; } #banner small { font-size: 18px; }
+    #hud { transform: scale(.75); transform-origin: top center; }
+    #pausedNote { font-size: 20px; top: 50px; }
+    .panel { padding: 12px 16px; max-height: 94vh; }
+    #mapPick { padding: 6px; } #mapPick h2 { font-size: 24px; } #mapPick .sub { font-size: 11px; margin-bottom: 6px; }
+    #mapGrid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .mcard .nm { font-size: 13px; } .mcard .mhint { display: none; }
+    #mapClose { font-size: 16px; padding: 6px 20px; margin-top: 6px; }
+  }
+</style>
+</head>
+<body>
+<div id="title" hidden>
+  <h1 class="big"><img class="logo" src="assets/icon.png" alt=""> BREAK MY EGGS</h1>
+  <div class="tag">The wobbly egg brawler — last egg standing wins!</div>
+  <button class="tb primary" data-t="play"><i data-i="play-button"></i> PLAY</button>
+  <button class="tb" data-t="online"><i data-i="globe"></i> PLAY ONLINE</button>
+  <button class="tb" data-t="controls"><i data-i="gamepad"></i> CONTROLS</button>
+  <button class="tb" data-t="settings"><i data-i="cog"></i> SETTINGS</button>
+  <button class="tb" data-t="share"><i data-i="smartphone"></i> GET THE GAME</button>
+  <button class="tb" data-t="credits"><i data-i="scroll-unfurled"></i> CREDITS</button>
+  <button class="tb" data-t="quit"><i data-i="exit-door"></i> QUIT</button>
+  <div class="foot">Mouse · Arrow keys / W S + Enter · Controller D-pad + A</div>
+</div>
+<div id="lobby">
+  <button id="toTitle"><i data-i="return-arrow"></i> Main menu</button>
+  <div id="online">
+    <button id="hostBtn"><i data-i="globe"></i> Host online game</button>
+    <div id="joinRow"><input id="codeIn" placeholder="CODE" maxlength="5"><button id="joinBtn">Join</button></div>
+    <button id="leaveBtn" hidden>Leave online</button>
+    <div id="netStatus"></div>
+  </div>
+  <div>
+    <h1 class="big"><img class="logo" src="assets/icon.png" alt=""> BREAK MY EGGS</h1>
+    <div class="hint">Join: <b>Keyboard 1</b> press <b>Space</b> &nbsp;·&nbsp; <b>Keyboard 2</b> press <b>.</b> &nbsp;·&nbsp; <b>Controller</b> press <b>A</b> &nbsp;·&nbsp; Crack every other egg off the map!</div>
+  </div>
+  <div>
+    <div id="cards"></div>
+    <div class="row"><button id="addBot">+ Add Bot</button><button id="mapBtn"></button><button id="start">START BRAWL! (Enter)</button><div id="waitHost" hidden>Waiting for the host to start…</div></div>
+    <div class="row"><button class="ghost" id="ctlBtn"><i data-i="gamepad"></i> Controls</button><button class="ghost" id="menuBtn"><i data-i="cog"></i> Menu (Esc)</button></div>
+  </div>
+</div>
+<div id="hud"></div>
+<div id="banner" class="big"></div>
+<div id="esc">Esc / Start = menu</div>
+<div id="pausedNote" class="big"></div>
+<div id="touch" hidden>
+  <div id="stickZone"></div><div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="touchBtns">
+    <button class="tbtn-jump" data-k="jump"><b><i data-i="bouncing-spring"></i></b>JUMP</button>
+    <button class="tbtn-punch" data-k="punch"><b><i data-i="punch"></i></b>PUNCH</button>
+    <button class="tbtn-grab" data-k="grab"><b><i data-i="grab"></i></b>GRAB</button>
+  </div>
+  <button id="touchPause"><i data-i="pause-button"></i></button>
+</div>
+<div id="rotate"><b><i data-i="smartphone"></i><i data-i="clockwise-rotation"></i></b>Turn your phone sideways to play</div>
+<div id="mapPick" hidden><div class="mp">
+  <h2><i data-i="treasure-map"></i> Choose the map</h2>
+  <div class="sub">Every PC gets one vote — the map with the most votes is played (ties are a coin flip)</div>
+  <div id="mapGrid"></div>
+  <button id="mapClose"><i data-i="check-mark"></i> Done (Esc)</button>
+</div></div>
+<div id="menu" hidden>
+  <div class="panel" id="mainPanel">
+    <h2 class="big" id="menuTitle">PAUSED</h2>
+    <button class="mb" data-m="resume">Resume</button>
+    <button class="mb" data-m="controls"><i data-i="gamepad"></i> Controls &amp; how to play</button>
+    <div class="vol"><i data-i="speaker"></i> Effects <input type="range" id="sfxVol" min="0" max="1" step="0.05"></div>
+    <div class="vol"><i data-i="musical-notes"></i> Music <input type="range" id="musicVol" min="0" max="1" step="0.05"></div>
+    <button class="mb" data-m="fullscreen"><i data-i="expand"></i> Fullscreen (F11)</button>
+    <button class="mb" data-m="retro" id="retroBtn"></button>
+    <button class="mb" data-m="lobby" id="mLobby"><i data-i="house"></i> Back to lobby</button>
+    <button class="mb" data-m="leave" id="mLeave"><i data-i="exit-door"></i> Leave online game</button>
+    <button class="mb danger" data-m="quit"><i data-i="cancel"></i> Quit game</button>
+  </div>
+  <div class="panel" id="sharePanel" hidden>
+    <h2 class="big">GET THE GAME</h2>
+    <div class="share" id="shareBody"></div>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+  <div class="panel" id="creditsPanel" hidden>
+    <h2 class="big">CREDITS</h2>
+    <div class="credits">
+      <p><b>Break My Eggs</b><br>Made with Claude Code</p>
+      <p>3D models &amp; sound effects by <b>Kenney</b> (kenney.nl) — CC0<br>
+      Train · Food · Furniture · City · Pirate · Castle · Space · Space Station · Coaster · Platformer · Holiday · Graveyard Kits · Impact Sounds · Interface Sounds · Voiceover Pack · Music Jingles</p>
+      <p>Icons from <b>game-icons.net</b> by Lorc, Delapouite &amp; contributors — CC BY 3.0</p>
+      <p>Music: original, synthesized in the game<br>Engine: three.js · cannon-es · PeerJS · Electron</p>
+    </div>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+  <div class="panel" id="ctlPanel" hidden>
+    <h2 class="big">CONTROLS</h2>
+    <table class="ctl">
+      <tr><th></th><th><i data-i="keyboard"></i> Keyboard 1</th><th><i data-i="keyboard"></i> Keyboard 2</th><th><i data-i="gamepad"></i> Controller</th></tr>
+      <tr><td>Join</td><td><kbd>Space</kbd></td><td><kbd>.</kbd></td><td><kbd>A</kbd></td></tr>
+      <tr><td>Move</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></td><td>Left stick / D-pad</td></tr>
+      <tr><td>Jump (tap = small hop)</td><td><kbd>Space</kbd></td><td><kbd>Right Shift</kbd></td><td><kbd>A</kbd></td></tr>
+      <tr><td>Punch / use weapon</td><td><kbd>J</kbd></td><td><kbd>.</kbd></td><td><kbd>X</kbd> / <kbd>Y</kbd></td></tr>
+      <tr><td>Grab (hold)</td><td><kbd>K</kbd></td><td><kbd>/</kbd></td><td><kbd>B</kbd> / bumpers / triggers</td></tr>
+      <tr><td>Throw (while holding)</td><td><kbd>J</kbd></td><td><kbd>.</kbd></td><td><kbd>X</kbd></td></tr>
+      <tr><td>Menu / pause</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td><td><kbd>Start</kbd></td></tr>
+      <tr><td>Start match (lobby)</td><td><kbd>Enter</kbd></td><td><kbd>Enter</kbd></td><td><kbd>Start</kbd></td></tr>
+    </table>
+    <ul class="tips">
+      <li><b>Goal:</b> be the last egg on the map. Fall off = you're out.</li>
+      <li><b>Punches wind up</b> before they hit — time them. Getting hit cancels your wind-up.</li>
+      <li><b>Grab</b> someone and press punch to <b>throw</b> them.</li>
+      <li>Fell off an edge? <b>Hold grab</b> near the ledge to hang on, then <b>jump</b> (or push forward) to climb up.</li>
+      <li><b>Weapons</b> (yellow light beams): walk over them. <i data-i="baseball-bat"></i> Bat · <i data-i="saucepan"></i> Frying pan · <i data-i="boxing-glove"></i> Mega glove · <i data-i="raw-egg"></i> Egg blaster · <i data-i="claw-hammer"></i> Hammer (slow, huge hit) · <i data-i="unlit-bomb"></i> Bombs (punch to throw, they blow up) · <i data-i="banana"></i> Banana (punch to drop a peel — anyone who steps on it slips).</li>
+      <li><i data-i="chili-pepper"></i> <b>Hot pepper</b> (orange beam): 9 seconds of extra speed and harder hits.</li>
+      <li>Shell broken? You're a <b>yolk</b> — fast but fragile. Grab a <b>green-glowing spare shell</b> to become an egg again.</li>
+      <li>Watch the maps: trains, bridges, wrecking balls, rolling pins, hot stoves, wind gusts and spinning tables!</li>
+      <li>Online: everyone plays on their own computer with Keyboard 1 (WASD) or a controller — or on a phone.</li>
+      <li><i data-i="smartphone"></i> <b>Phone:</b> hold your phone sideways, drag your left thumb anywhere on the left half to move, use the JUMP / PUNCH / GRAB buttons on the right, <i data-i="pause-button"></i> to pause.</li>
+    </ul>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+</div>
+<script src="vendor/peerjs/dist/peerjs.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "cannon-es": "./vendor/cannon-es/dist/cannon-es.js",
+  "three/addons/": "./lib/"
+} }
+</script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
