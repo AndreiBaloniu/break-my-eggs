@@ -1,0 +1,9 @@
+{
+  "name": "break-my-eggs-ios",
+  "private": true,
+  "dependencies": {
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/ios": "^8.5.3"
+  }
+}

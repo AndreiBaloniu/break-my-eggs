@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.andreibaloniu.breakmyeggs",
+  "appName": "Break My Eggs",
+  "webDir": "www",
+  "server": {
+    "allowNavigation": [
+      "andreibaloniu.github.io"
+    ]
+  },
+  "ios": {
+    "backgroundColor": "#ffb02e",
+    "contentInset": "never",
+    "scrollEnabled": false
+  }
+}
