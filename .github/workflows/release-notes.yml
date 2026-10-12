@@ -1,0 +1,17 @@
+name: Release notes
+on: push
+permissions:
+  contents: write
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy PATCH_NOTES.md to the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          TITLE=$(grep -m1 '^## ' PATCH_NOTES.md | sed 's/^## //')
+          tail -n +2 PATCH_NOTES.md > notes.md
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes-file notes.md

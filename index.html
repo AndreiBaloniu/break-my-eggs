@@ -1,0 +1,475 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Break My Eggs</title>
+<link rel="icon" href="assets/icon.png"><link rel="apple-touch-icon" href="assets/icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffb02e"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Break My Eggs">
+<style>
+  * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }   /* manipulation = no double-tap zoom */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Arial, sans-serif; color: #fff; user-select: none; }
+  canvas { display: block; touch-action: none; }
+  html, body { overscroll-behavior: none; -webkit-touch-callout: none; -webkit-user-select: none; touch-action: manipulation; }
+  /* touch controls */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #stickZone { position: absolute; left: 0; top: 20%; bottom: 0; width: 50%; pointer-events: auto; touch-action: none; }
+  #stickBase { position: fixed; left: 110px; top: calc(100% - 120px); width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%; background: #ffffff1c; border: 3px solid #ffffff55; pointer-events: none; }
+  #stickKnob { position: absolute; left: 32px; top: 32px; width: 60px; height: 60px; border-radius: 50%; background: #ffffffb0; box-shadow: 0 2px 8px #0006; }
+  #touchBtns button, #touchPause { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; border: 3px solid #ffffff88; background: #0008; color: #fff;
+    font-weight: bold; font-size: 13px; line-height: 1.1; font-family: 'Segoe UI', Arial, sans-serif; }
+  #touchBtns button b { display: block; font-size: 28px; }
+  #touchBtns button.on { background: #ffd93dcc; color: #000; transform: scale(.94); }
+  .tbtn-jump { right: 18px; bottom: 18px; width: 104px; height: 104px; }
+  .tbtn-punch { right: 132px; bottom: 26px; width: 86px; height: 86px; }
+  .tbtn-grab { right: 36px; bottom: 132px; width: 78px; height: 78px; }
+  .tbtn-drop { right: 140px; bottom: 130px; width: 60px; height: 60px; font-size: 12px !important; }
+  .tbtn-block { right: 232px; bottom: 34px; width: 72px; height: 72px; }
+  #touchBtns button.tbtn-drop[hidden] { display: none; }
+  #touchPause { top: 10px; right: 10px; width: 52px; height: 52px; font-size: 22px; border-radius: 14px; }
+  #rotate { display: none; position: fixed; inset: 0; z-index: 50; background: #111; color: #ffd93d; align-items: center; justify-content: center; flex-direction: column; font-size: 24px; text-align: center; padding: 20px; }
+  #rotate b { font-size: 64px; }
+  .ic { width: 1.15em; height: 1.15em; vertical-align: -0.22em; flex-shrink: 0; pointer-events: none; }   /* clicks land on the button */
+  .ic.flip { transform: scaleX(-1); }
+  h1 .logo { height: 1.25em; vertical-align: -0.3em; border-radius: 22%; border: 3px solid #000; box-shadow: 0 4px 0 #0008; }
+  @media (orientation: portrait) { body.touch #rotate { display: flex; } }
+  body.touch #esc { display: none !important; }
+  [hidden] { display: none !important; }
+  #online { position: absolute; top: 16px; right: 16px; width: 260px; background: #000a; border-radius: 14px; padding: 12px; font-size: 14px; }
+  #online button { width: 100%; font-size: 16px; font-weight: bold; padding: 8px; border: 0; border-radius: 8px; cursor: pointer; background: #4dd4ff; color: #000; }
+  #joinRow { display: flex; gap: 6px; margin-top: 8px; }
+  #joinRow input { flex: 1; min-width: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 3px; padding: 6px; border-radius: 8px; border: 0; }
+  #joinRow button { width: auto; background: #6bcb77; }
+  #leaveBtn { background: #ff5a5a !important; margin-top: 8px; }
+  #netStatus { margin-top: 8px; min-height: 1em; }
+  #code { font-size: 26px; letter-spacing: 4px; color: #ffd93d; cursor: pointer; display: block; }
+  #waitHost { font-size: 20px; font-weight: bold; padding: 10px; }
+  .big { font-family: 'Arial Black', 'Segoe UI Black', sans-serif; text-shadow: 0 4px 0 #0008; }
+  .big, #banner, h1, h2 { paint-order: stroke fill; }   /* outline behind the letters: crisp on phones without Arial Black (it looked doubled on Android) */
+  #lobby { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; padding: 16px; }
+  #lobby > * { pointer-events: auto; }
+  #lobby h1 { margin: 0; text-align: center; font-size: 64px; color: #ffd93d; -webkit-text-stroke: 3px #000; }
+  .hint { text-align: center; font-size: 18px; background: #0008; border-radius: 10px; padding: 6px 12px; margin: 6px auto; }
+  .keys { text-align: center; font-size: 13px; opacity: .85; margin-top: 8px; }
+  #hud { position: fixed; top: 10px; left: 0; right: 0; display: none; justify-content: center; gap: 10px; pointer-events: none; }
+  .hp { background: #000a; border-radius: 10px; padding: 6px 10px; min-width: 120px; border-bottom: 4px solid var(--c); }
+  .hp .bar { height: 6px; background: #fff3; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .hp .bar i { display: block; height: 100%; background: var(--c); }
+  .hp.dead { opacity: .35; }
+  .hp.yolk .bar i { background: #ffb21c; }
+  .hp .crowns { color: #ffd93d; margin-right: 4px; white-space: nowrap; }   /* rounds won: one crown + a number, so it doesn't read as extra health */
+  #banner { position: fixed; top: 38%; left: 0; right: 0; text-align: center; font-size: 72px; color: #fff; -webkit-text-stroke: 3px #000; pointer-events: none; display: none; }
+  #banner small { display: block; font-size: 30px; -webkit-text-stroke: 1px #000; }
+  #esc { position: fixed; bottom: 8px; right: 12px; font-size: 13px; opacity: .6; display: none; }
+  #menu { position: fixed; inset: 0; background: #000b; display: flex; align-items: center; justify-content: center; z-index: 20; }
+  .panel { background: #1d1d26; border: 4px solid #ffd93d; border-radius: 18px; padding: 22px 28px; min-width: 340px; max-width: 900px; max-height: 90vh; overflow-y: auto; }
+  .panel h2 { margin: 0 0 14px; text-align: center; font-size: 40px; color: #ffd93d; -webkit-text-stroke: 2px #000; }
+  .panel .mb { display: block; width: 100%; font-size: 20px; font-weight: bold; padding: 11px; margin: 8px 0; border: 0; border-radius: 10px; cursor: pointer; background: #fff2; color: #fff; }
+  .panel .mb:hover, .panel .mb:focus { background: #ffd93d; color: #000; outline: none; }
+  .panel .mb.danger:hover { background: #ff5a5a; }
+  .vol { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 10px 0; }
+  .vol input { flex: 1; accent-color: #ffd93d; }
+  table.ctl { border-collapse: collapse; width: 100%; font-size: 16px; margin-bottom: 14px; }
+  table.ctl th { color: #ffd93d; text-align: left; padding: 6px 10px; border-bottom: 2px solid #fff3; }
+  table.ctl td { padding: 6px 10px; border-bottom: 1px solid #fff1; }
+  kbd { background: #fff; color: #000; border-radius: 5px; padding: 1px 7px; font-weight: bold; font-family: inherit; box-shadow: 0 2px 0 #999; margin: 0 1px; white-space: nowrap; }
+  .tips { font-size: 15px; line-height: 1.5; margin: 0 0 6px; padding-left: 20px; }
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+    background: radial-gradient(ellipse at center, #0000 30%, #0008 100%); }
+  #title h1 { margin: 0; font-size: clamp(48px, 9vh, 92px); color: #ffd93d; -webkit-text-stroke: 4px #000; animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-10px) rotate(-1.5deg); } }
+  #title .tag { font-size: 20px; margin: 2px 0 2vh; text-shadow: 0 2px 0 #000; }
+  .tb { display: block; width: 300px; margin: 0.9vh auto; font-size: clamp(16px, 3vh, 24px); font-weight: bold; padding: 1.1vh; border-radius: 14px; cursor: pointer;
+    border: 3px solid #000; background: #fffbe8; color: #222; box-shadow: 0 5px 0 #000; font-family: 'Arial Black', 'Segoe UI Black', sans-serif; transition: transform .08s; }
+  .tb:hover, .tb:focus { background: #ffd93d; transform: scale(1.06); outline: none; }
+  .tb.primary { background: #ffd93d; font-size: clamp(20px, 3.8vh, 30px); }
+  #verTag { position: absolute; right: 14px; bottom: 12px; font-size: 13px; opacity: .7; text-shadow: 0 1px 0 #000; }
+  #title .foot { position: absolute; bottom: 14px; font-size: 14px; opacity: .8; text-shadow: 0 1px 0 #000; }
+  #toTitle { position: absolute; top: 16px; left: 16px; font-size: 16px; font-weight: bold; padding: 8px 14px; border: 0; border-radius: 10px; cursor: pointer; background: #000a; color: #fff; }
+  .credits { font-size: 16px; line-height: 1.6; text-align: center; }
+  .hp.wave .left { color: #ff8a8a; }
+  .news { max-width: 620px; font-size: 15px; line-height: 1.45; }
+  .news h3 { color: #ffd93d; margin: 4px 0 8px; }
+  .news h4 { margin: 14px 0 4px; color: #4dd4ff; }
+  .news ul { margin: 0; padding-left: 22px; }
+  .news li { margin: 3px 0; }
+  .news code { background: #fff2; border-radius: 4px; padding: 0 4px; }
+  .phrow { display: flex; gap: 14px; align-items: center; justify-content: center; margin: 6px 0 10px; }
+  .phrow input[type=range] { width: 160px; }
+  .qtext { text-align: center; font-size: 20px; margin: 0 0 6px; }
+  /* lobby: player cards */
+  #cards { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .card { width: 176px; background: linear-gradient(180deg, #2b2b3a, #191922); border: 3px solid #000; border-top: 7px solid var(--c, #666); border-radius: 18px; padding: 8px 10px 10px; position: relative;
+    font-size: 14px; box-shadow: 0 6px 0 #0009, 0 10px 24px #0006; animation: pop .25s ease-out; }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } }
+  .card.remote { opacity: .9; }
+  .chead { display: flex; align-items: center; justify-content: space-between; min-height: 22px; }
+  .chead .who { font-size: 12px; font-weight: bold; color: #cfd3dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .x { background: #fff1; color: #fff; border: 0; width: 24px; height: 24px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .x:hover { background: #ff5a5a; }
+  .pic { margin: 4px auto 6px; height: 132px; border-radius: 14px; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 45%, #3a4558), #1b2130 75%); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .eggpic { height: 128px; }
+  .card input { width: 100%; font-size: 16px; font-weight: bold; padding: 6px 8px; border-radius: 10px; border: 2px solid #ffffff22; background: #0006; color: #fff; text-align: center; outline: none; }
+  .card input:focus { border-color: #ffd93d; }
+  .cbtns { display: flex; gap: 6px; margin-top: 7px; }
+  .cbtns button { border: 2px solid #000; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 3px 0 #000; transition: transform .08s; }
+  .cbtns button:hover { transform: translateY(-2px); }
+  .cbtns button:active { transform: translateY(1px); box-shadow: 0 1px 0 #000; }
+  .cbtns .edit { flex: 1; background: #ffd93d; color: #000; padding: 7px 4px; font-size: 14px; }
+  .cbtns .dice { width: 38px; background: #fff; color: #000; font-size: 17px; }
+  .rname { font-size: 18px; font-weight: bold; text-align: center; margin-top: 6px; }
+  .card.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #c9ccd6; border: 3px dashed #ffffff40; background: #00000055;
+    box-shadow: none; min-height: 236px; line-height: 1.7; animation: none; }
+  .card.empty .plus { font-size: 54px; line-height: 1; color: #ffffff66; font-weight: bold; }
+  .card.empty kbd { font-size: 12px; }
+  body.touch .card.empty { cursor: pointer; }
+  /* lobby: bottom buttons */
+  .row { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .row button { font-size: 19px; padding: 11px 22px; border-radius: 14px; border: 3px solid #000; cursor: pointer; font-weight: bold; box-shadow: 0 5px 0 #000; color: #fff;
+    font-family: 'Arial Black', 'Segoe UI Black', sans-serif; transition: transform .08s; }
+  .row button:hover:not(:disabled) { transform: translateY(-2px); }
+  .row button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+  #start { background: #ffd93d; color: #000; font-size: 23px; padding: 12px 30px; }
+  #start:disabled, #contBtn:disabled { opacity: .45; cursor: default; }
+  #addBot { background: #3a3d4f; }
+  #mapBtn { background: #1d5fa0; }
+  #modeBtn { background: #6a35a0; }
+  #contBtn { background: #2e8b57; }
+  .row .ghost { background: #0008; border-color: #ffffff33; box-shadow: none; font-family: 'Segoe UI', Arial, sans-serif; font-size: 16px; padding: 7px 16px; }
+  /* the egg editor */
+  #eggEd { position: fixed; inset: 0; z-index: 40; background: #000c; display: flex; align-items: center; justify-content: center; padding: 14px; }
+  .ed { width: min(1000px, 100%); height: min(660px, 100%); display: flex; gap: 14px; background: linear-gradient(160deg, #2a2a3b, #15151d); border: 4px solid #ffd93d; border-radius: 24px; padding: 14px; box-shadow: 0 12px 50px #000c; }
+  .edPrev { flex: 0 0 40%; position: relative; border-radius: 18px; overflow: hidden; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--c) 40%, #3a4a60), #10141c 78%); }
+  #edCv { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  .edTip { position: absolute; top: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: bold; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  .turn { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; }
+  .turn button { width: 44px; height: 38px; border-radius: 12px; border: 2px solid #000; background: #fffd; font-size: 16px; cursor: pointer; box-shadow: 0 3px 0 #000; }
+  .edSide { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .edTop { display: flex; gap: 8px; }
+  #edName { flex: 1; min-width: 0; font-size: 22px; font-weight: bold; padding: 8px 12px; border-radius: 12px; border: 2px solid #ffffff2a; background: #0007; color: #fff; outline: none; font-family: 'Arial Black', 'Segoe UI Black', sans-serif; }
+  #edName:focus { border-color: #ffd93d; }
+  .edx { width: 46px; border-radius: 12px; border: 0; background: #fff1; color: #fff; font-size: 20px; cursor: pointer; }
+  .edx:hover { background: #ff5a5a; }
+  .tabs { display: flex; gap: 5px; margin: 10px 0 8px; }
+  .tabs button { flex: 1; padding: 7px 2px; border-radius: 12px; border: 2px solid transparent; background: #ffffff10; color: #dfe3ea; font-weight: bold; font-size: 12px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .tabs button .ic { width: 22px; height: 22px; }
+  .tabs button:hover { border-color: #ffffff55; }
+  .tabs button.on { background: #ffd93d; color: #000; }
+  #edBody { flex: 1; overflow-y: auto; padding: 2px 4px 2px 2px; }
+  .sec h4 { margin: 4px 0 8px; color: #ffd93d; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; }
+  .sec + .sec { margin-top: 12px; }
+  .pal { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 8px; }
+  .chip { aspect-ratio: 1; border-radius: 14px; border: 3px solid #0008; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; padding: 0;
+    background: radial-gradient(circle at 32% 26%, #ffffff70, transparent 42%), var(--k); box-shadow: 0 3px 0 #0009; transition: transform .1s; }
+  .chip:hover { transform: translateY(-2px) scale(1.07); }
+  .chip.on { border-color: #fff; box-shadow: 0 0 0 3px #ffd93d, 0 3px 0 #0009; }
+  .chip .ic { filter: drop-shadow(0 1px 1px #000) drop-shadow(0 0 2px #000); }
+  .chip.any { background: radial-gradient(circle at 32% 26%, #ffffff70, transparent 42%), var(--k, conic-gradient(#ff4d4d, #ffd84d, #5dff5d, #4dfcff, #4d6bff, #ff4dff, #ff4d4d)); overflow: hidden; }
+  #cpick { position: fixed; z-index: 60; width: 248px; padding: 12px; background: linear-gradient(160deg, #2c2c3e, #1a1a24); border: 3px solid #ffd93d; border-radius: 18px; box-shadow: 0 12px 34px #000d; }
+  .cpSV { position: relative; height: 156px; border-radius: 12px; cursor: crosshair; touch-action: none; border: 2px solid #000;
+    background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, var(--hue, red)); }
+  .cpSV i { position: absolute; width: 22px; height: 22px; margin: -11px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #000a, 0 2px 6px #000a; pointer-events: none; }
+  .cpHue { position: relative; height: 20px; margin: 14px 4px; border-radius: 10px; cursor: pointer; touch-action: none; border: 2px solid #000;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .cpHue i { position: absolute; top: -5px; width: 14px; height: 26px; margin-left: -7px; border-radius: 7px; background: #fff; box-shadow: 0 0 0 2px #000a, 0 2px 5px #000a; pointer-events: none; }
+  .cpRow { display: flex; gap: 8px; align-items: center; }
+  #cpSw { width: 40px; height: 40px; border-radius: 12px; border: 3px solid #000; flex: none; box-shadow: inset 0 0 0 2px #ffffff30; }
+  #cpHex { flex: 1; min-width: 0; font: bold 16px Consolas, monospace; padding: 8px; border-radius: 10px; border: 2px solid #ffffff2a; background: #0007; color: #fff; text-transform: uppercase; outline: none; text-align: center; }
+  #cpHex:focus { border-color: #ffd93d; }
+  #cpOk { padding: 9px 14px; border-radius: 11px; border: 2px solid #000; background: #ffd93d; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 3px 0 #000; }
+  .optlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .optc { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 7px; border-radius: 14px; border: 2px solid #ffffff1c; background: #ffffff0a; color: #fff; font-weight: bold; font-size: 13px;
+    cursor: pointer; transition: transform .08s; }
+  .optc img { width: 100%; aspect-ratio: 200 / 240; border-radius: 10px; background: radial-gradient(circle at 50% 45%, #3a4558, #1b2130 80%); margin-bottom: 4px; }
+  .optc:hover { border-color: #ffffff88; transform: translateY(-2px); }
+  .optc.on { background: #ffd93d; color: #000; border-color: #ffd93d; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 7px; }
+  .opt { padding: 11px 6px; border-radius: 12px; border: 2px solid #ffffff1f; background: #ffffff0c; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; transition: transform .08s; }
+  .opt:hover { border-color: #ffffff88; transform: translateY(-1px); }
+  .opt.on { background: #ffd93d; color: #000; border-color: #ffd93d; }
+  .edNote { font-size: 13px; color: #c3c8d4; margin: 6px 0; line-height: 1.4; }
+  .tools { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .tool { padding: 8px 12px; border-radius: 11px; border: 2px solid #ffffff2a; background: #ffffff10; color: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
+  .tool.on { background: #4dd4ff; color: #000; border-color: #4dd4ff; }
+  .tool:disabled { opacity: .4; cursor: default; }
+  #brushSize, #cropZoom { width: 100%; accent-color: #ffd93d; }
+  #cropCv { width: 100%; max-width: 480px; aspect-ratio: 2; display: block; margin: 6px auto; border-radius: 12px; touch-action: none; cursor: grab; }
+  .phthumb { width: 100%; max-width: 420px; aspect-ratio: 2; object-fit: cover; border-radius: 12px; display: block; margin: 6px auto 4px; border: 3px solid #000; }
+  .bigbtn { display: block; width: 100%; padding: 11px; border-radius: 12px; border: 3px solid #000; box-shadow: 0 4px 0 #000; background: #ffd93d; color: #000; font-weight: bold; font-size: 16px; cursor: pointer; margin: 9px 0; }
+  .bigbtn.alt { background: #ffffff14; color: #fff; border-color: #ffffff30; box-shadow: none; }
+  .edFoot { display: flex; gap: 10px; margin-top: 10px; }
+  .edFoot button { flex: 1; padding: 11px; font-size: 18px; border-radius: 14px; border: 3px solid #000; box-shadow: 0 4px 0 #000; font-weight: bold; cursor: pointer; font-family: 'Arial Black', 'Segoe UI Black', sans-serif; }
+  #edDone { background: #ffd93d; } #edRand { background: #fff; }
+  /* loading screen */
+  #loading { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: radial-gradient(circle at 50% 35%, #ffb02e, #a8520a); transition: opacity .35s; }
+  #loading.out { opacity: 0; pointer-events: none; }
+  #loading .ld { width: min(640px, 100%); text-align: center; }
+  #ldImg { width: 100%; aspect-ratio: 16 / 9; max-height: 42vh; border-radius: 16px; border: 4px solid #000; box-shadow: 0 6px 0 #0008; background: #0003 center / cover no-repeat; margin-bottom: 12px; }
+  #loading .egg { width: 54px; height: 70px; margin: 0 auto 6px; background: #fff4e0; border: 4px solid #000; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow: inset -8px -6px 0 #0001; animation: wob .9s ease-in-out infinite; }
+  @keyframes wob { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg) translateY(-12px); } }
+  #ldTitle { margin: 4px 0 2px; font-size: clamp(28px, 6vh, 52px); color: #ffd93d; -webkit-text-stroke: 2px #000; }
+  #ldSub { font-size: 19px; min-height: 1.3em; text-shadow: 0 2px 0 #000; }
+  .ldbar { width: 70%; height: 16px; margin: 14px auto 12px; border: 3px solid #000; border-radius: 99px; background: #0004; overflow: hidden; }
+  .ldbar i { display: block; height: 100%; width: 0; background: #ffd93d; transition: width .25s; }
+  .ldtip { font-size: 16px; background: #0006; border-radius: 10px; padding: 8px 14px; min-height: 1.2em; }
+  .ldtip:empty { visibility: hidden; }
+  #modeBtn:disabled { opacity: .8; cursor: default; }
+  .hp.wave { min-width: 0; border-bottom-color: #c1121f; font-size: 18px; }
+  #mapBtn .cnt { background: #ffd93d; color: #000; border-radius: 999px; padding: 1px 9px; font-size: 15px; margin-left: 4px; }
+  #mapPick { position: fixed; inset: 0; background: #000c; display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
+  #mapPick[hidden] { display: none; }
+  #mapPick .mp { width: min(1180px, 100%); max-height: 100%; display: flex; flex-direction: column; background: #15202b; border: 4px solid #ffd93d; border-radius: 18px; padding: 14px 18px; }
+  #mapPick h2 { margin: 0; text-align: center; font-size: 38px; color: #ffd93d; -webkit-text-stroke: 2px #000; }
+  #mapPick .sub { text-align: center; color: #cfd8e3; margin: 2px 0 10px; }
+  #mapGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); grid-auto-rows: max-content; gap: 12px; overflow-y: auto; min-height: 0; padding: 4px; }
+  .mcard { position: relative; text-align: left; padding: 0 0 8px; border: 3px solid #ffffff22; border-radius: 12px; background: #22303f; color: #fff; cursor: pointer; overflow: hidden; font: inherit; transition: transform .12s, border-color .12s; }
+  .mcard:hover, .mcard:focus { transform: translateY(-3px); border-color: #ffffffaa; outline: none; }
+  .mcard.on { border-color: #ffd93d; box-shadow: 0 0 0 3px #ffd93d55; }
+  .mcard img, .mcard .ph { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .mcard .ph { display: flex; align-items: center; justify-content: center; font-size: 64px; background: linear-gradient(135deg, #3a7bd5, #8e44ad); }
+  .mcard .nm { font-weight: bold; font-size: 16px; padding: 7px 10px 2px; }
+  .mcard .mhint { font-size: 12px; color: #b8c4d0; padding: 0 10px; min-height: 30px; }
+  .mcard .who { font-size: 12px; color: #ffd93d; padding: 3px 10px 0; min-height: 15px; }
+  .mcard .votes { position: absolute; top: 8px; right: 8px; background: #ffd93d; color: #000; font-weight: bold; border-radius: 999px; min-width: 30px; text-align: center; padding: 3px 8px; font-size: 18px; box-shadow: 0 2px 6px #0008; }
+  .mcard .mine { position: absolute; top: 8px; left: 8px; background: #2ecc71; color: #fff; font-weight: bold; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+  #mapClose { margin: 12px auto 0; font-size: 20px; padding: 8px 30px; border-radius: 12px; border: 0; background: #ffd93d; font-weight: bold; cursor: pointer; }
+  .share { text-align: center; max-width: 520px; font-size: 15px; }
+  .share a { color: #ffd93d; word-break: break-all; }
+  .share .bigqr { width: 220px; height: 220px; image-rendering: pixelated; border-radius: 10px; background: #fff; }
+  .share .ver { opacity: .6; font-size: 12px; }
+  .share .dlbtn { display: inline-block; margin: 6px 0; padding: 14px 28px; font-size: 22px; font-weight: bold; border-radius: 14px; border: 3px solid #000; box-shadow: 0 5px 0 #000;
+    background: #ffd93d; color: #000; text-decoration: none; font-family: 'Arial Black', 'Segoe UI Black', sans-serif; }
+  .share .dlbtn:hover { transform: scale(1.05); }
+  .share .dlbtn[hidden] { display: none; }
+  .share .note { font-size: 13px; opacity: .8; }
+  .share hr { border: 0; border-top: 1px solid #fff3; margin: 16px 0; }
+  .share .homebox { background: #ffffff14; border: 2px solid #ffd93d; border-radius: 14px; padding: 10px 14px; margin-top: 10px; }
+  .share .homebox h3 { margin: 4px 0; color: #ffd93d; }
+  .share .steps { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+  .share .steps > div { flex: 1 1 200px; text-align: left; background: #0006; border-radius: 10px; padding: 8px 12px; border: 2px solid transparent; }
+  .share .steps > div.me { border-color: #2ecc71; order: -1; }
+  .share .steps ol { margin: 6px 0 2px; padding-left: 20px; }
+  .share .steps li { margin: 3px 0; }
+  #dlPage { position: fixed; inset: 0; z-index: 60; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 30px 16px;
+    background: radial-gradient(circle at 50% 30%, #ffb02e, #b85c00); }
+  #dlPage[hidden] { display: none; }
+  #dlPage .share { background: #000a; border-radius: 16px; padding: 18px 22px; }
+  .joinqr { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; }
+  .joinqr img { width: 96px; height: 96px; image-rendering: pixelated; border-radius: 6px; background: #fff; }
+  #pausedNote { position: fixed; top: 70px; left: 0; right: 0; text-align: center; font-size: 28px; pointer-events: none; display: none; }
+  #resumeAll { pointer-events: auto; margin-top: 8px; font-size: 18px; font-weight: bold; padding: 8px 20px; border: 0; border-radius: 10px; background: #ffd93d; cursor: pointer; font-family: 'Segoe UI', Arial, sans-serif; }
+  /* small landscape screens (phones) */
+  @media (max-height: 540px) {
+    body.touch table.ctl { display: none; }
+    #title h1 { font-size: 30px; -webkit-text-stroke: 2px #000; } #title .tag { font-size: 13px; margin: 0 0 4px; }
+    .tb { margin: 4px auto; padding: 4px; font-size: 15px; width: 260px; } .tb.primary { font-size: 19px; } #title .foot { display: none; }
+    #lobby { padding: 6px 8px; overflow-y: auto; justify-content: flex-start; gap: 4px; }
+    #lobby h1 { display: none; }
+    #lobby #toTitle { position: static; align-self: flex-start; padding: 5px 10px; font-size: 13px; }
+    #lobby #online { position: static; width: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; background: none; padding: 0; }
+    #lobby #online button { width: auto; padding: 5px 12px; }
+    #lobby #joinRow, #lobby #leaveBtn, #lobby #netStatus { margin-top: 0 !important; }
+    #lobby #joinRow input { width: 90px; font-size: 14px; padding: 4px; flex: none; }
+    #lobby h1 { font-size: 30px; -webkit-text-stroke: 2px #000; }
+    #lobby .hint { font-size: 12px; padding: 3px 8px; margin: 3px auto; }
+    #cards { gap: 6px; }
+    .card { width: 132px; padding: 5px 7px 7px; font-size: 11px; border-radius: 14px; }
+    .pic { height: 74px; margin: 2px auto 4px; } .eggpic { height: 72px; }
+    .card input { font-size: 13px; padding: 3px 6px; }
+    .cbtns .edit { font-size: 12px; padding: 4px; } .cbtns .dice { width: 30px; font-size: 13px; }
+    .card.empty { min-height: 150px; font-size: 11px; } .card.empty .plus { font-size: 34px; }
+    .row { margin-top: 4px; gap: 6px; }
+    .row button { font-size: 13px !important; padding: 6px 12px; box-shadow: 0 3px 0 #000; }
+    .ed { padding: 8px; gap: 8px; border-radius: 16px; } .edPrev { flex-basis: 34%; }
+    #edName { font-size: 15px; padding: 4px 8px; } .tabs { margin: 5px 0; gap: 3px; } .tabs button { font-size: 10px; padding: 3px 1px; } .tabs button .ic { width: 16px; height: 16px; }
+    .pal { grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 5px; } .chip { border-radius: 9px; font-size: 14px; }
+    .optlist { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 5px; } .optc { font-size: 11px; padding: 4px 3px; }
+    .edFoot { margin-top: 5px; } .edFoot button { padding: 5px; font-size: 13px; }
+    .bigbtn { padding: 6px; font-size: 13px; margin: 5px 0; } #cropCv { max-width: 300px; }
+    #code { font-size: 18px; }
+    #banner { font-size: 40px; } #banner small { font-size: 18px; }
+    #hud { transform: scale(.75); transform-origin: top center; }
+    #pausedNote { font-size: 20px; top: 50px; }
+    .panel { padding: 12px 16px; max-height: 94vh; }
+    #mapPick { padding: 6px; } #mapPick h2 { font-size: 24px; } #mapPick .sub { font-size: 11px; margin-bottom: 6px; }
+    #mapGrid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .mcard .nm { font-size: 13px; } .mcard .mhint { display: none; }
+    #mapClose { font-size: 16px; padding: 6px 20px; margin-top: 6px; }
+  }
+  @media (max-height: 360px) { #title .tag { display: none; } .tb { margin: 3px auto; padding: 3px; } }   /* tiny phones */
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="ld">
+    <div id="ldImg" hidden></div>
+    <div class="egg"></div>
+    <h2 class="big" id="ldTitle">BREAK MY EGGS</h2>
+    <div id="ldSub">Loading…</div>
+    <div class="ldbar"><i id="ldBar"></i></div>
+    <div class="ldtip" id="ldTip"></div>
+  </div>
+</div>
+<div id="title" hidden>
+  <h1 class="big"><img class="logo" src="assets/icon.png" alt=""> BREAK MY EGGS</h1>
+  <div class="tag">The wobbly egg brawler — last egg standing wins!</div>
+  <button class="tb primary" data-t="play"><i data-i="play-button"></i> PLAY</button>
+  <button class="tb" data-t="online"><i data-i="globe"></i> PLAY ONLINE</button>
+  <button class="tb" data-t="controls"><i data-i="gamepad"></i> CONTROLS</button>
+  <button class="tb" data-t="settings"><i data-i="cog"></i> SETTINGS</button>
+  <button class="tb" data-t="share"><i data-i="smartphone"></i> GET THE GAME</button>
+  <button class="tb" data-t="credits"><i data-i="scroll-unfurled"></i> CREDITS</button>
+  <button class="tb" data-t="quit"><i data-i="exit-door"></i> QUIT</button>
+  <div class="foot">Mouse · Arrow keys / W S + Enter · Controller D-pad + A</div>
+  <div id="verTag"></div>
+</div>
+<div id="lobby">
+  <button id="toTitle"><i data-i="return-arrow"></i> Main menu</button>
+  <div id="online">
+    <button id="hostBtn"><i data-i="globe"></i> Host online game</button>
+    <div id="joinRow"><input id="codeIn" placeholder="CODE" maxlength="5"><button id="joinBtn">Join</button></div>
+    <button id="leaveBtn" hidden>Leave online</button>
+    <div id="netStatus"></div>
+  </div>
+  <div>
+    <h1 class="big"><img class="logo" src="assets/icon.png" alt=""> BREAK MY EGGS</h1>
+    <div class="hint">Join: <b>Keyboard 1</b> press <b>Space</b> &nbsp;·&nbsp; <b>Keyboard 2</b> press <b>.</b> &nbsp;·&nbsp; <b>Controller</b> press <b>A</b> &nbsp;·&nbsp; Crack every other egg off the map!</div>
+  </div>
+  <div>
+    <div id="cards"></div>
+    <div class="row"><button id="addBot">+ Add Bot</button><button id="modeBtn"></button><button id="mapBtn"></button><button id="contBtn" hidden></button><button id="start">START BRAWL! (Enter)</button><div id="waitHost" hidden>Waiting for the host to start…</div></div>
+    <div class="row"><button class="ghost" id="ctlBtn"><i data-i="gamepad"></i> Controls</button><button class="ghost" id="menuBtn"><i data-i="cog"></i> Menu (Esc)</button></div>
+  </div>
+</div>
+<div id="hud"></div>
+<div id="banner" class="big"></div>
+<div id="esc">Esc / Start = menu</div>
+<div id="pausedNote" class="big"></div>
+<div id="touch" hidden>
+  <div id="stickZone"></div><div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="touchBtns">
+    <button class="tbtn-jump" data-k="jump"><b><i data-i="bouncing-spring"></i></b>JUMP</button>
+    <button class="tbtn-punch" data-k="punch"><b><i data-i="punch"></i></b>PUNCH</button>
+    <button class="tbtn-grab" data-k="grab"><b><i data-i="grab"></i></b>GRAB</button>
+    <button class="tbtn-block" data-k="block"><b><i data-i="checked-shield"></i></b>BLOCK</button>
+    <button class="tbtn-drop" data-k="drop" id="dropBtn" hidden>DROP</button>
+  </div>
+  <button id="touchPause"><i data-i="pause-button"></i></button>
+</div>
+<div id="eggEd" hidden><div class="ed">
+  <div class="edPrev"><canvas id="edCv"></canvas><div class="edTip" id="edTip"></div>
+    <div class="turn"><button data-act="turn" data-v="-1" title="Turn left">◀</button><button data-act="turn" data-v="1" title="Turn right">▶</button></div></div>
+  <div class="edSide">
+    <div class="edTop"><input id="edName" maxlength="12" aria-label="Name"><button class="edx" data-act="done" title="Done">✕</button></div>
+    <div class="tabs" id="edTabs"></div>
+    <div id="edBody"></div>
+    <div id="cpick" hidden><div class="cpSV" id="cpSV"><i id="cpDot"></i></div><div class="cpHue" id="cpHue"><i id="cpKnob"></i></div>
+      <div class="cpRow"><span id="cpSw"></span><input id="cpHex" maxlength="7" spellcheck="false" aria-label="Color code"><button id="cpOk">OK</button></div></div>
+    <div class="edFoot"><button id="edRand" data-act="random"><i data-i="dice-six-faces-five"></i> Surprise me</button><button id="edDone" data-act="done"><i data-i="check-mark"></i> Done</button></div>
+  </div>
+</div></div>
+<input type="file" id="phFile" accept="image/*" hidden>
+<div id="dlPage" hidden><h1 class="big"><img class="logo" src="assets/icon.png" alt=""> BREAK MY EGGS</h1><div class="share" id="dlBody"></div></div>
+<div id="rotate"><b><i data-i="smartphone"></i><i data-i="clockwise-rotation"></i></b>Turn your phone sideways to play</div>
+<div id="mapPick" hidden><div class="mp">
+  <h2><i data-i="treasure-map"></i> Choose the map</h2>
+  <div class="sub">Every PC gets one vote — the map with the most votes is played (ties are a coin flip)</div>
+  <div id="mapGrid"></div>
+  <button id="mapClose"><i data-i="check-mark"></i> Done (Esc)</button>
+</div></div>
+<div id="menu" hidden>
+  <div class="panel" id="mainPanel">
+    <h2 class="big" id="menuTitle">PAUSED</h2>
+    <button class="mb" data-m="resume">Resume</button>
+    <button class="mb" data-m="controls"><i data-i="gamepad"></i> Controls &amp; how to play</button>
+    <div class="vol"><i data-i="speaker"></i> Effects <input type="range" id="sfxVol" min="0" max="1" step="0.05"></div>
+    <div class="vol"><i data-i="musical-notes"></i> Music <input type="range" id="musicVol" min="0" max="1" step="0.05"></div>
+    <button class="mb" data-m="fullscreen"><i data-i="expand"></i> Fullscreen (F11)</button>
+    <button class="mb" data-m="lowpoly" id="lowBtn"></button>
+    <button class="mb" data-m="saveRun" id="mSave"><i data-i="save"></i> Save run &amp; back to lobby</button>
+    <button class="mb" data-m="lobby" id="mLobby"><i data-i="house"></i> Back to lobby</button>
+    <button class="mb" data-m="leave" id="mLeave"><i data-i="exit-door"></i> Leave online game</button>
+    <button class="mb danger" data-m="quit"><i data-i="cancel"></i> Quit game</button>
+  </div>
+  <div class="panel" id="quitPanel" hidden>
+    <h2 class="big">QUIT?</h2>
+    <p class="qtext">Close Break My Eggs?</p>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> No, keep playing</button>
+    <button class="mb danger" data-m="quitYes"><i data-i="exit-door"></i> Yes, quit</button>
+  </div>
+  <div class="panel" id="sharePanel" hidden>
+    <h2 class="big">GET THE GAME</h2>
+    <div class="share" id="shareBody"></div>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+  <div class="panel" id="newsPanel" hidden>
+    <h2 class="big">WHAT'S NEW</h2>
+    <div class="news" id="newsBody"></div>
+    <button class="mb" data-m="back"><i data-i="check-mark"></i> Let's play!</button>
+  </div>
+  <div class="panel" id="creditsPanel" hidden>
+    <h2 class="big">CREDITS</h2>
+    <div class="credits">
+      <p><b>Break My Eggs</b><br>Made with Claude Code</p>
+      <p>3D models &amp; sound effects by <b>Kenney</b> (kenney.nl) — CC0<br>
+      Train · Food · Furniture · City · Pirate · Castle · Space · Space Station · Coaster · Platformer · Holiday · Graveyard Kits · Impact Sounds · Interface Sounds · Voiceover Pack · Music Jingles</p>
+      <p>Icons from <b>game-icons.net</b> by Lorc, Delapouite &amp; contributors — CC BY 3.0</p>
+      <p>Music: original, synthesized in the game<br>Engine: three.js · cannon-es · PeerJS · Electron</p>
+    </div>
+    <button class="mb" data-m="news"><i data-i="scroll-unfurled"></i> What's new</button>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+  <div class="panel" id="ctlPanel" hidden>
+    <h2 class="big">CONTROLS</h2>
+    <table class="ctl">
+      <tr><th></th><th><i data-i="keyboard"></i> Keyboard 1</th><th><i data-i="keyboard"></i> Keyboard 2</th><th><i data-i="gamepad"></i> Controller</th></tr>
+      <tr><td>Join</td><td><kbd>Space</kbd></td><td><kbd>.</kbd></td><td><kbd>A</kbd></td></tr>
+      <tr><td>Move</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></td><td>Left stick / D-pad</td></tr>
+      <tr><td>Jump (tap = small hop)</td><td><kbd>Space</kbd></td><td><kbd>Right Shift</kbd></td><td><kbd>A</kbd></td></tr>
+      <tr><td>Punch / use weapon (tap = combo, hold = charge)</td><td><kbd>J</kbd></td><td><kbd>.</kbd></td><td><kbd>X</kbd></td></tr>
+      <tr><td>Block (hold)</td><td><kbd>I</kbd></td><td><kbd>'</kbd></td><td><kbd>LB</kbd> / <kbd>LT</kbd></td></tr>
+      <tr><td>Grab (hold with empty hands = block too)</td><td><kbd>K</kbd></td><td><kbd>/</kbd></td><td><kbd>B</kbd> / <kbd>RB</kbd> / <kbd>RT</kbd></td></tr>
+      <tr><td>Drop weapon</td><td><kbd>L</kbd></td><td><kbd>;</kbd></td><td><kbd>Y</kbd></td></tr>
+      <tr><td>Throw (while holding)</td><td><kbd>J</kbd></td><td><kbd>.</kbd></td><td><kbd>X</kbd></td></tr>
+      <tr><td>Menu / pause</td><td><kbd>Esc</kbd></td><td><kbd>Esc</kbd></td><td><kbd>Start</kbd></td></tr>
+      <tr><td>Start match (lobby)</td><td><kbd>Enter</kbd></td><td><kbd>Enter</kbd></td><td><kbd>Start</kbd></td></tr>
+    </table>
+    <ul class="tips">
+      <li><b>Goal:</b> be the last egg on the map. Fall off = you're out.</li>
+      <li><b>Punches wind up</b> before they hit — time them. Getting hit cancels your wind-up.</li>
+      <li><b>Combo:</b> tap punch three times: jab, jab, then a big <b>haymaker</b> that sends eggs flying.</li>
+      <li><b>Charge:</b> hold punch to power up any punch or weapon swing, then let go. A charged hit smashes through a guard.</li>
+      <li><b>Flying headbutt:</b> punch while in the air.</li>
+      <li><b>Block:</b> hold block to stop punches, swings and egg shots from the front — you turn to face the nearest attacker. Only a charged hit smashes through.</li>
+      <li><b>No juggling:</b> the 4th hit in a quick chain breaks the combo and gives you a moment of safety, and a dazed egg can't be dazed again until it's back up.</li>
+      <li><b>Grab</b> someone and press punch to <b>throw</b> them.</li>
+      <li>Fell off an edge? <b>Hold grab</b> near the ledge to hang on, then <b>jump</b> (or push forward) to climb up.</li>
+      <li><b>Weapons</b> (yellow light beams): walk over them. <i data-i="baseball-bat"></i> Bat · <i data-i="saucepan"></i> Frying pan · <i data-i="boxing-glove"></i> Mega glove · <i data-i="raw-egg"></i> Egg blaster · <i data-i="claw-hammer"></i> Hammer (slow, huge hit) · <i data-i="unlit-bomb"></i> Bombs (punch to throw, they blow up) · <i data-i="banana"></i> Banana (punch to drop a peel — anyone who steps on it slips) · <i data-i="rolling-pin"></i> Rolling pin (big sideways shove) · <i data-i="spatula"></i> Spatula (flips eggs up high) · <i data-i="sausage"></i> Sausage (fast little slaps).</li>
+      <li><i data-i="chili-pepper"></i> <b>Hot pepper</b> (orange beam): 9 seconds of extra speed and harder hits.</li>
+      <li>Shell broken? You're a <b>yolk</b> — fast but fragile. Grab a <b>green-glowing spare shell</b> to become an egg again.</li>
+      <li><b>Endless mode</b> (lobby → Mode): team up against wave after wave of bad eggs, with a big boss every 5th wave. Everyone gets 3 lives, and beating a boss gives an extra one. A red ring warns where the next bad egg drops in. The run saves at every wave (or <b>Save run</b> in the pause menu) — pick it up with <b>Continue</b> in the lobby, also with friends online.</li>
+      <li>Watch the maps: trains, bridges, wrecking balls, rolling pins, hot stoves, wind gusts and spinning tables!</li>
+      <li><i data-i="falling-bomb"></i> <b>Air raid:</b> after 40 seconds of a battle round, bombs start falling on orange rings — faster and faster until someone wins.</li>
+      <li>On the tall maps (Jungle Temple, Cliff Climb, Quarry Pit, Treetop Village, Ski Slope) falling off a level isn't the end: jump at a wall and hold grab to climb back up, or take the stairs and ramps.</li>
+      <li>Online: everyone plays on their own computer with Keyboard 1 (WASD) or a controller — or on a phone.</li>
+      <li><i data-i="smartphone"></i> <b>Phone:</b> hold your phone sideways, drag your left thumb anywhere on the left half to move, use the JUMP / PUNCH / GRAB / BLOCK buttons on the right, <i data-i="pause-button"></i> to pause.</li>
+    </ul>
+    <button class="mb" data-m="back"><i data-i="return-arrow"></i> Back</button>
+  </div>
+</div>
+<script src="vendor/peerjs/dist/peerjs.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "cannon-es": "./vendor/cannon-es/dist/cannon-es.js",
+  "three/addons/": "./lib/"
+} }
+</script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
